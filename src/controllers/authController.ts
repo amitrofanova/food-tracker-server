@@ -1,4 +1,3 @@
-// src/controllers/authController.ts
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcrypt";
@@ -22,6 +21,7 @@ export const register = async (request: any, reply: any) => {
       data: {
         email,
         password: passwordHash,
+        calorieBudget: 2000,
       },
       select: { id: true, email: true, createdAt: true },
     });
@@ -67,7 +67,11 @@ export const login = async (request: any, reply: any) => {
 
     return reply.send({
       token,
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        email: user.email,
+        calorieBudget: user.calorieBudget,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -80,7 +84,7 @@ export const getMe = async (request: any, reply: any) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true },
+      select: { id: true, email: true, calorieBudget: true },
     });
     if (!user) {
       return reply.status(404).send({ error: "User not found" });
@@ -88,6 +92,22 @@ export const getMe = async (request: any, reply: any) => {
     return reply.send(user);
   } catch (error) {
     console.error("Get me error:", error);
+    return reply.status(500).send({ error: "Internal server error" });
+  }
+};
+
+export const updateMe = async (request: any, reply: any) => {
+  const userId = request.user!.id;
+  const { calorieBudget } = request.body as { calorieBudget?: number };
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { calorieBudget: calorieBudget ?? null },
+      select: { id: true, email: true, calorieBudget: true },
+    });
+    return reply.send(user);
+  } catch (error) {
+    console.error("Update me error:", error);
     return reply.status(500).send({ error: "Internal server error" });
   }
 };

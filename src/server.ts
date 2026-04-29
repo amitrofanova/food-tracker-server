@@ -1,9 +1,7 @@
-// src/server.ts
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import authRoutes from "./routes/authRoutes";
 import entryRoutes from "./routes/entryRoutes";
-import { prisma } from "./lib/prisma";
 
 const start = async () => {
   const fastify = Fastify({
@@ -18,7 +16,7 @@ const start = async () => {
   await fastify.register(cors, {
     origin: allowedOrigins,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   });
 

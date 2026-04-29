@@ -1,4 +1,3 @@
-// src/controllers/entryController.ts
 import { prisma } from "../lib/prisma";
 
 // Serialize an entry + product to the shape the client expects (IDiaryEntry)
@@ -9,11 +8,11 @@ function serializeEntry(
     weight: number;
     mealType: string;
     userId: number;
-    productId: number;
+    productId: bigint;
     createdAt: Date;
   },
   product: {
-    id: number;
+    id: bigint;
     name: string;
     calories: number;
     protein: number;
