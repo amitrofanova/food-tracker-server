@@ -1,24 +1,27 @@
+import path from "path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import staticFiles from "@fastify/static";
 import authRoutes from "./routes/authRoutes";
 import entryRoutes from "./routes/entryRoutes";
+
+const isProduction = process.env.NODE_ENV === "production";
 
 const start = async () => {
   const fastify = Fastify({
     logger: true,
   });
 
-  const allowedOrigins =
-    process.env.NODE_ENV === "production"
-      ? ["https://my-frontend.onrender.com"]
-      : ["http://localhost:5173"];
-
-  await fastify.register(cors, {
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  });
+  // In production the client is served from the same origin — no CORS needed.
+  // In development the Vite dev server runs on a different port.
+  if (!isProduction) {
+    await fastify.register(cors, {
+      origin: ["http://localhost:5173", "http://localhost:5174"],
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    });
+  }
 
   fastify.register(authRoutes, { prefix: "/auth" });
   fastify.register(entryRoutes, { prefix: "/entries" });
@@ -27,11 +30,26 @@ const start = async () => {
     return { status: "OK", timestamp: new Date().toISOString() };
   });
 
+  // Serve the built Vue SPA and handle client-side routing.
+  if (isProduction) {
+    const clientRoot = path.join(__dirname, "..", "public");
+
+    await fastify.register(staticFiles, {
+      root: clientRoot,
+      prefix: "/",
+    });
+
+    // SPA fallback: any unmatched GET returns index.html
+    fastify.setNotFoundHandler((_req, reply) => {
+      reply.sendFile("index.html");
+    });
+  }
+
   const port = parseInt(process.env.PORT || "3001", 10);
 
   try {
     await fastify.listen({ port, host: "0.0.0.0" });
-    console.log("🚀 Fastify server running on http://localhost:3001");
+    console.log(`🚀 Fastify server running on http://localhost:${port}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
