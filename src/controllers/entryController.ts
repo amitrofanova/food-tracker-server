@@ -54,6 +54,10 @@ export const createEntry = async (request: any, reply: any) => {
       .send({ error: "Either productId or productName is required" });
   }
 
+  if (typeof weight !== "number" || weight <= 0 || weight > 10000) {
+    return reply.status(400).send({ error: "Weight must be a positive number up to 10000" });
+  }
+
   try {
     // 1. Если указан productId — пробуем найти существующий продукт по числовому id
     //    (для продуктов из OpenFoodFacts id — строка штрихкода, поэтому при ненахождении

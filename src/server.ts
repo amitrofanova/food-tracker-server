@@ -2,6 +2,8 @@ import path from "path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import staticFiles from "@fastify/static";
+import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
 import authRoutes from "./routes/authRoutes";
 import entryRoutes from "./routes/entryRoutes";
 
@@ -9,7 +11,15 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const start = async () => {
   const fastify = Fastify({
-    logger: true,
+    logger: isProduction ? { level: "error" } : true,
+    bodyLimit: 1_048_576, // 1 MB
+  });
+
+  await fastify.register(helmet);
+
+  await fastify.register(rateLimit, {
+    max: 100,
+    timeWindow: "1 minute",
   });
 
   // In production the client is served from the same origin — no CORS needed.
@@ -23,11 +33,14 @@ const start = async () => {
     });
   }
 
-  fastify.register(authRoutes, { prefix: "/auth" });
+  fastify.register(authRoutes, {
+    prefix: "/auth",
+    config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
+  });
   fastify.register(entryRoutes, { prefix: "/entries" });
 
   fastify.get("/health", async () => {
-    return { status: "OK", timestamp: new Date().toISOString() };
+    return { status: "OK" };
   });
 
   // Serve the built Vue SPA and handle client-side routing.

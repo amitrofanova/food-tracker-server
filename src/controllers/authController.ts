@@ -4,8 +4,10 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const SALT_ROUNDS = 10;
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your_strong_jwt_secret_should_be_in_env";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
 
 export const register = async (request: any, reply: any) => {
   const { email, password } = request.body;
@@ -32,7 +34,7 @@ export const register = async (request: any, reply: any) => {
       if (error.code === "P2002") {
         return reply
           .status(409)
-          .send({ error: "User with this email already exists" });
+          .send({ error: "Registration failed. Please try a different email." });
       }
     }
     console.error("Registration error:", error);
