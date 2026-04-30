@@ -15,7 +15,14 @@ const start = async () => {
     bodyLimit: 1_048_576, // 1 MB
   });
 
-  await fastify.register(helmet);
+  await fastify.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "connect-src": ["'self'", "https://world.openfoodfacts.org"],
+      },
+    },
+  });
 
   await fastify.register(rateLimit, {
     max: 100,
