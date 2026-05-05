@@ -6,6 +6,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import authRoutes from "./routes/authRoutes";
 import entryRoutes from "./routes/entryRoutes";
+import productRoutes from "./routes/productRoutes";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -29,8 +30,6 @@ const start = async () => {
     timeWindow: "1 minute",
   });
 
-  // In production the client is served from the same origin — no CORS needed.
-  // In development the Vite dev server runs on a different port.
   if (!isProduction) {
     await fastify.register(cors, {
       origin: ["http://localhost:5173", "http://localhost:5174"],
@@ -45,12 +44,12 @@ const start = async () => {
     config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
   });
   fastify.register(entryRoutes, { prefix: "/entries" });
+  fastify.register(productRoutes, { prefix: "/products" });
 
   fastify.get("/health", async () => {
     return { status: "OK" };
   });
 
-  // Serve the built Vue SPA and handle client-side routing.
   if (isProduction) {
     const clientRoot = path.join(__dirname, "..", "public");
 
@@ -59,7 +58,6 @@ const start = async () => {
       prefix: "/",
     });
 
-    // SPA fallback: any unmatched GET returns index.html
     fastify.setNotFoundHandler((_req, reply) => {
       reply.sendFile("index.html");
     });
