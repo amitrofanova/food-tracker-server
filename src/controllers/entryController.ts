@@ -1,6 +1,5 @@
 import { prisma } from "../lib/prisma";
 
-// Serialize an entry + product to the shape the client expects (IDiaryEntry)
 function serializeEntry(
   entry: {
     id: number;
@@ -55,7 +54,9 @@ export const createEntry = async (request: any, reply: any) => {
   }
 
   if (typeof weight !== "number" || weight <= 0 || weight > 10000) {
-    return reply.status(400).send({ error: "Weight must be a positive number up to 10000" });
+    return reply
+      .status(400)
+      .send({ error: "Weight must be a positive number up to 10000" });
   }
 
   try {
@@ -76,20 +77,20 @@ export const createEntry = async (request: any, reply: any) => {
 
     if (!product) {
       const name = productName || productId;
+
+      const raw100g = {
+        calories: calories ?? 0,
+        protein: protein ?? 0,
+        fat: fat ?? 0,
+        carbs: carbs ?? 0,
+      };
+
       product = await prisma.product.upsert({
         where: { name },
-        update: {
-          calories: calories ?? 0,
-          protein: protein ?? 0,
-          fat: fat ?? 0,
-          carbs: carbs ?? 0,
-        },
+        update: {},
         create: {
           name,
-          calories: calories ?? 0,
-          protein: protein ?? 0,
-          fat: fat ?? 0,
-          carbs: carbs ?? 0,
+          ...raw100g,
         },
       });
     }
