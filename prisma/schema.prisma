@@ -13,12 +13,14 @@ generator client {
 }
 
 model User {
-  id        Int         @id @default(autoincrement())
-  email     String      @unique
-  password  String
-  createdAt DateTime    @default(now())
-  entries   DiaryEntry[]
-  calorieBudget Int?
+  id             Int              @id @default(autoincrement())
+  email          String           @unique
+  password       String
+  createdAt      DateTime         @default(now())
+  entries        DiaryEntry[]
+  customProducts CustomProduct[]
+  recipes        Recipe[]
+  calorieBudget  Int?
 }
 
 enum MealType {
@@ -48,4 +50,45 @@ model DiaryEntry {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   product    Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
   createdAt  DateTime  @default(now())
+}
+
+model CustomProduct {
+  id        String   @id
+  name      String
+  calories  Float
+  protein   Float
+  fat       Float
+  carbs     Float
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+}
+
+model Recipe {
+  id          String             @id
+  name        String
+  totalWeight Float
+  calories    Float
+  protein     Float
+  fat         Float
+  carbs       Float
+  userId      Int
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+  createdAt   DateTime           @default(now())
+}
+
+model RecipeIngredient {
+  id          Int    @id @default(autoincrement())
+  recipeId    String
+  productId   String
+  productName String
+  weight      Float
+  calories    Float
+  protein     Float
+  fat         Float
+  carbs       Float
+  recipe      Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 }

@@ -7,6 +7,8 @@ import rateLimit from "@fastify/rate-limit";
 import authRoutes from "./routes/authRoutes";
 import entryRoutes from "./routes/entryRoutes";
 import productRoutes from "./routes/productRoutes";
+import customProductRoutes from "./routes/customProductRoutes";
+import recipeRoutes from "./routes/recipeRoutes";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -45,6 +47,8 @@ const start = async () => {
   });
   fastify.register(entryRoutes, { prefix: "/entries" });
   fastify.register(productRoutes, { prefix: "/products" });
+  fastify.register(customProductRoutes, { prefix: "/custom-products" });
+  fastify.register(recipeRoutes, { prefix: "/recipes" });
 
   fastify.get("/health", async () => {
     return { status: "OK" };
