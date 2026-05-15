@@ -42,13 +42,13 @@ const start = async () => {
   }
 
   fastify.register(authRoutes, {
-    prefix: "/auth",
+    prefix: "/api/auth",
     config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
   });
-  fastify.register(entryRoutes, { prefix: "/entries" });
-  fastify.register(productRoutes, { prefix: "/products" });
-  fastify.register(customProductRoutes, { prefix: "/custom-products" });
-  fastify.register(recipeRoutes, { prefix: "/recipes" });
+  fastify.register(entryRoutes, { prefix: "/api/entries" });
+  fastify.register(productRoutes, { prefix: "/api/products" });
+  fastify.register(customProductRoutes, { prefix: "/api/custom-products" });
+  fastify.register(recipeRoutes, { prefix: "/api/recipes" });
 
   fastify.get("/health", async () => {
     return { status: "OK" };
