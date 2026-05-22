@@ -26,10 +26,10 @@ function serializeEntry(
     productName: product.name,
     mealType: entry.mealType.toLowerCase(),
     weight: entry.weight,
-    calories: (product.calories * entry.weight) / 100,
-    protein: (product.protein * entry.weight) / 100,
-    fat: (product.fat * entry.weight) / 100,
-    carbs: (product.carbs * entry.weight) / 100,
+    calories: Math.round((product.calories * entry.weight) / 100),
+    protein: Math.round((product.protein * entry.weight) / 100),
+    fat: Math.round((product.fat * entry.weight) / 100),
+    carbs: Math.round((product.carbs * entry.weight) / 100),
   };
 }
 

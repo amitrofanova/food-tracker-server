@@ -30,7 +30,7 @@ export async function upsertCustomProduct(
   const body = request.body as CustomProductBody;
 
   const product = await prisma.customProduct.upsert({
-    where: { userId_name: { userId, name: body.name } },
+    where: { id: body.id },
     create: {
       id: body.id,
       name: body.name,
@@ -41,6 +41,7 @@ export async function upsertCustomProduct(
       userId,
     },
     update: {
+      name: body.name,
       calories: body.calories,
       protein: body.protein,
       fat: body.fat,
