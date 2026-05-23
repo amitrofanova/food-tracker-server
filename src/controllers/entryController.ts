@@ -155,6 +155,49 @@ export const getEntriesByDate = async (request: any, reply: any) => {
   }
 };
 
+export const updateEntry = async (request: any, reply: any) => {
+  const { id } = request.params as { id: string };
+  const { weight, mealType } = request.body as {
+    weight?: number;
+    mealType?: string;
+  };
+  const userId = request.user!.id;
+
+  if (
+    weight !== undefined &&
+    (typeof weight !== "number" || weight <= 0 || weight > 10000)
+  ) {
+    return reply
+      .status(400)
+      .send({ error: "Weight must be a positive number up to 10000" });
+  }
+
+  try {
+    const entry = await prisma.diaryEntry.findUnique({
+      where: { id: Number(id) },
+      include: { product: true },
+    });
+
+    if (!entry) return reply.status(404).send({ error: "Entry not found" });
+    if (entry.userId !== userId)
+      return reply.status(403).send({ error: "Forbidden" });
+
+    const updated = await prisma.diaryEntry.update({
+      where: { id: Number(id) },
+      data: {
+        ...(weight !== undefined ? { weight } : {}),
+        ...(mealType ? { mealType: mealType.toUpperCase() as any } : {}),
+      },
+      include: { product: true },
+    });
+
+    return reply.send(serializeEntry(updated, updated.product));
+  } catch (error) {
+    console.error("Update entry error:", error);
+    return reply.status(500).send({ error: "Failed to update entry" });
+  }
+};
+
 export const deleteEntry = async (request: any, reply: any) => {
   const { id } = request.params as { id: string };
   const userId = request.user!.id;
