@@ -32,14 +32,14 @@ const start = async () => {
     timeWindow: "1 minute",
   });
 
-  if (!isProduction) {
-    await fastify.register(cors, {
-      origin: ["http://localhost:5173", "http://localhost:5174"],
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-    });
-  }
+  await fastify.register(cors, {
+    origin: isProduction
+      ? ['capacitor://localhost', 'https://localhost', 'http://localhost']
+      : ['http://localhost:5173', 'http://localhost:5174'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   fastify.register(authRoutes, {
     prefix: "/api/auth",
