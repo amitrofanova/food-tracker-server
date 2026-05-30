@@ -9,6 +9,7 @@ import entryRoutes from "./routes/entryRoutes";
 import productRoutes from "./routes/productRoutes";
 import customProductRoutes from "./routes/customProductRoutes";
 import recipeRoutes from "./routes/recipeRoutes";
+import voiceRoutes from "./routes/voiceRoutes";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -34,11 +35,11 @@ const start = async () => {
 
   await fastify.register(cors, {
     origin: isProduction
-      ? ['capacitor://localhost', 'https://localhost', 'http://localhost']
-      : ['http://localhost:5173', 'http://localhost:5174'],
+      ? ["capacitor://localhost", "https://localhost", "http://localhost"]
+      : ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   fastify.register(authRoutes, {
@@ -49,6 +50,7 @@ const start = async () => {
   fastify.register(productRoutes, { prefix: "/api/products" });
   fastify.register(customProductRoutes, { prefix: "/api/custom-products" });
   fastify.register(recipeRoutes, { prefix: "/api/recipes" });
+  fastify.register(voiceRoutes, { prefix: "/api/voice" });
 
   fastify.get("/health", async () => {
     return { status: "OK" };
