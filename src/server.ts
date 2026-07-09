@@ -23,7 +23,6 @@ const start = async () => {
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "connect-src": ["'self'", "https://world.openfoodfacts.org"],
       },
     },
   });
