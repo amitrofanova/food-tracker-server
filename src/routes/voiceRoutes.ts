@@ -24,10 +24,9 @@ export default async function voiceRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", authenticate);
 
   const MODEL_LIST = [
-    "google/gemma-2-9b-it:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
-    "google/gemma-3-12b-it:free",
+    "openai/gpt-4o-mini",
+    "google/gemma-3-12b-it",
+    "meta-llama/llama-3.1-8b-instruct",
     ...(process.env.OPENROUTER_MODELS
       ? process.env.OPENROUTER_MODELS.split(",")
           .map((s) => s.trim())
