@@ -167,8 +167,8 @@ export default async function voiceRoutes(fastify: FastifyInstance) {
           );
           lastError = { status: res.status, body: resBody };
 
-          // Give up on permanent errors
-          if (res.status === 402 || res.status === 403 || res.status === 400) {
+          // Give up on permanent auth/request errors; 402 (credits) → try next model
+          if (res.status === 403 || res.status === 400) {
             break;
           }
         } catch (err) {
