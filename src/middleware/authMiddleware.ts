@@ -1,36 +1,31 @@
-// src/middleware/authMiddleware.ts
 import { FastifyRequest, FastifyReply } from "fastify";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is required");
-}
+import { ACCESS_COOKIE } from "../lib/authCookies";
+import { verifyAccessToken } from "../lib/authTokens";
 
 export const authenticate = async (
   request: FastifyRequest,
   reply: FastifyReply,
 ) => {
   const authHeader = request.headers.authorization;
+  const bearerToken =
+    authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+  const cookieToken = request.cookies[ACCESS_COOKIE];
+  const token = bearerToken || cookieToken;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!token) {
     return reply
       .status(401)
       .send({ error: "Authorization header missing or invalid" });
   }
 
-  const token = authHeader.substring(7);
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    // Прикрепляем userId к запросу
+    const decoded = verifyAccessToken(token);
     request.user = { id: decoded.userId };
-  } catch (err) {
+  } catch {
     return reply.status(401).send({ error: "Invalid or expired token" });
   }
 };
 
-// Расширяем тип FastifyRequest
 declare module "fastify" {
   interface FastifyRequest {
     user?: { id: number };
