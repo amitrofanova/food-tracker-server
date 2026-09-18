@@ -32,10 +32,11 @@ function serializeEntry(
     productName: product.name,
     mealType: entry.mealType.toLowerCase(),
     weight: entry.weight,
-    calories: Math.round((product.calories * entry.weight) / 100),
-    protein: Math.round((product.protein * entry.weight) / 100),
-    fat: Math.round((product.fat * entry.weight) / 100),
-    carbs: Math.round((product.carbs * entry.weight) / 100),
+    // КБЖУ в API — всегда на 100 г (как в Product). Порцию считает клиент.
+    calories: Math.round(product.calories),
+    protein: Math.round(product.protein),
+    fat: Math.round(product.fat),
+    carbs: Math.round(product.carbs),
   };
 }
 
@@ -93,6 +94,7 @@ export const createEntry = async (
           .send({ error: "Either productId or productName is required" });
       }
 
+      // POST calories/protein/fat/carbs = per 100g, stored on Product as-is.
       const raw100g = {
         calories: calories ?? 0,
         protein: protein ?? 0,
@@ -161,7 +163,6 @@ export const getEntriesByDate = async (
       orderBy: { createdAt: "desc" },
     });
 
-    // Добавляем вычисленные поля
     const enrichedEntries = entries.map((entry) =>
       serializeEntry(entry, entry.product),
     );
