@@ -1,42 +1,24 @@
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../lib/prisma";
+import { parseWithSchema, productSchema } from "../lib/validation";
 
-function isNonNegativeFinite(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v >= 0;
-}
-
-export const upsertProduct = async (request: any, reply: any) => {
-  const body = request.body as Record<string, unknown>;
-  const { name, calories, protein, fat, carbs } = body;
-
-  if (typeof name !== "string" || !name.trim()) {
-    return reply.status(400).send({ error: "name is required" });
+export const upsertProduct = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+) => {
+  const parsed = parseWithSchema(productSchema, request.body);
+  if ("error" in parsed) {
+    return reply.status(400).send({ error: parsed.error });
   }
+  const { name, calories, protein, fat, carbs } = parsed.data;
 
-  for (const [field, val] of [
-    ["calories", calories],
-    ["protein", protein],
-    ["fat", fat],
-    ["carbs", carbs],
-  ] as [string, unknown][]) {
-    if (!isNonNegativeFinite(val)) {
-      return reply
-        .status(400)
-        .send({ error: `${field} must be a non-negative number` });
-    }
-  }
-
-  const macros = {
-    calories: calories as number,
-    protein: protein as number,
-    fat: fat as number,
-    carbs: carbs as number,
-  };
+  const macros = { calories, protein, fat, carbs };
 
   try {
     const product = await prisma.product.upsert({
-      where: { name: name.trim() },
+      where: { name },
       update: macros,
-      create: { name: name.trim(), ...macros },
+      create: { name, ...macros },
     });
 
     return reply.send({

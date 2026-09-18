@@ -72,7 +72,16 @@ export async function rotateRefreshToken(
     where: { tokenHash },
   });
 
-  if (!existing || existing.revokedAt || existing.expiresAt <= new Date()) {
+  if (!existing) {
+    return null;
+  }
+
+  if (existing.revokedAt) {
+    await revokeRefreshTokenFamily(existing.userId);
+    return null;
+  }
+
+  if (existing.expiresAt <= new Date()) {
     return null;
   }
 
@@ -101,6 +110,13 @@ export async function revokeRefreshToken(token: string): Promise<void> {
   const tokenHash = hashRefreshToken(token);
   await prisma.refreshToken.updateMany({
     where: { tokenHash, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
+export async function revokeRefreshTokenFamily(userId: number): Promise<void> {
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
 }

@@ -1,13 +1,14 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../lib/prisma";
+import { customProductSchema, parseWithSchema } from "../lib/validation";
 
-interface CustomProductBody {
-  id: string;
-  name: string;
-  calories: number;
-  protein: number;
-  fat: number;
-  carbs: number;
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: unknown }).code === "P2002"
+  );
 }
 
 export async function getCustomProducts(
@@ -27,36 +28,61 @@ export async function upsertCustomProduct(
   reply: FastifyReply,
 ) {
   const userId = request.user!.id;
-  const body = request.body as CustomProductBody;
+  const parsed = parseWithSchema(customProductSchema, request.body);
+  if ("error" in parsed) {
+    return reply.status(400).send({ error: parsed.error });
+  }
+  const body = parsed.data;
 
-  const product = await prisma.customProduct.upsert({
+  const existing = await prisma.customProduct.findUnique({
     where: { id: body.id },
-    create: {
-      id: body.id,
-      name: body.name,
-      calories: body.calories,
-      protein: body.protein,
-      fat: body.fat,
-      carbs: body.carbs,
-      userId,
-    },
-    update: {
-      name: body.name,
-      calories: body.calories,
-      protein: body.protein,
-      fat: body.fat,
-      carbs: body.carbs,
-    },
   });
-  return reply.status(201).send(product);
+
+  if (existing && existing.userId !== userId) {
+    return reply.status(404).send({ error: "Product not found" });
+  }
+
+  try {
+    if (existing) {
+      const product = await prisma.customProduct.update({
+        where: { id: body.id },
+        data: {
+          name: body.name,
+          calories: body.calories,
+          protein: body.protein,
+          fat: body.fat,
+          carbs: body.carbs,
+        },
+      });
+      return reply.status(201).send(product);
+    }
+
+    const product = await prisma.customProduct.create({
+      data: {
+        id: body.id,
+        name: body.name,
+        calories: body.calories,
+        protein: body.protein,
+        fat: body.fat,
+        carbs: body.carbs,
+        userId,
+      },
+    });
+    return reply.status(201).send(product);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return reply.status(409).send({ error: "Product already exists" });
+    }
+    throw error;
+  }
 }
 
 export async function deleteCustomProduct(
-  request: FastifyRequest,
+  request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply,
 ) {
   const userId = request.user!.id;
-  const { id } = request.params as { id: string };
+  const { id } = request.params;
 
   const existing = await prisma.customProduct.findFirst({
     where: { id, userId },

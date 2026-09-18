@@ -1,4 +1,4 @@
-import type { FastifyReply } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
 
 export const ACCESS_COOKIE = "access_token";
 export const REFRESH_COOKIE = "refresh_token";
@@ -37,4 +37,26 @@ export function clearAuthCookies(reply: FastifyReply): void {
   const base = baseCookieOptions();
   reply.clearCookie(ACCESS_COOKIE, base);
   reply.clearCookie(REFRESH_COOKIE, base);
+}
+
+export function isNativeClient(request: FastifyRequest): boolean {
+  const header = request.headers["x-client"];
+  const headerValue = Array.isArray(header) ? header[0] : header;
+  if (headerValue?.toLowerCase() === "capacitor") {
+    return true;
+  }
+
+  const body = request.body;
+  if (!body || typeof body !== "object") {
+    return false;
+  }
+
+  const record = body as Record<string, unknown>;
+  if (record.client === "capacitor") {
+    return true;
+  }
+
+  return (
+    typeof record.refreshToken === "string" && record.refreshToken.length > 0
+  );
 }

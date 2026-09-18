@@ -1,4 +1,10 @@
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../lib/prisma";
+import {
+  createEntrySchema,
+  parseWithSchema,
+  updateEntrySchema,
+} from "../lib/validation";
 
 function serializeEntry(
   entry: {
@@ -33,7 +39,23 @@ function serializeEntry(
   };
 }
 
-export const createEntry = async (request: any, reply: any) => {
+function parseEntryId(id: string): number | null {
+  const entryId = Number(id);
+  if (!Number.isInteger(entryId) || entryId <= 0) {
+    return null;
+  }
+  return entryId;
+}
+
+export const createEntry = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+) => {
+  const parsed = parseWithSchema(createEntrySchema, request.body);
+  if ("error" in parsed) {
+    return reply.status(400).send({ error: parsed.error });
+  }
+
   const {
     date,
     productId,
@@ -44,20 +66,8 @@ export const createEntry = async (request: any, reply: any) => {
     protein,
     fat,
     carbs,
-  } = request.body;
+  } = parsed.data;
   const userId = request.user!.id;
-
-  if (!productId && !productName) {
-    return reply
-      .status(400)
-      .send({ error: "Either productId or productName is required" });
-  }
-
-  if (typeof weight !== "number" || weight <= 0 || weight > 10000) {
-    return reply
-      .status(400)
-      .send({ error: "Weight must be a positive number up to 10000" });
-  }
 
   try {
     // 1. Если указан productId — пробуем найти существующий продукт по числовому id
@@ -67,7 +77,7 @@ export const createEntry = async (request: any, reply: any) => {
     if (productId) {
       const numericId = Number(productId);
       if (
-        !isNaN(numericId) &&
+        !Number.isNaN(numericId) &&
         numericId > 0 &&
         numericId < Number.MAX_SAFE_INTEGER
       ) {
@@ -76,7 +86,12 @@ export const createEntry = async (request: any, reply: any) => {
     }
 
     if (!product) {
-      const name = productName || productId;
+      const name = productName ?? productId;
+      if (!name) {
+        return reply
+          .status(400)
+          .send({ error: "Either productId or productName is required" });
+      }
 
       const raw100g = {
         calories: calories ?? 0,
@@ -100,7 +115,7 @@ export const createEntry = async (request: any, reply: any) => {
       data: {
         date: new Date(date), // ожидаем строку в формате ISO или YYYY-MM-DD
         weight,
-        mealType: (mealType as string).toUpperCase() as any,
+        mealType,
         userId,
         productId: product.id,
       },
@@ -117,8 +132,11 @@ export const createEntry = async (request: any, reply: any) => {
   }
 };
 
-export const getEntriesByDate = async (request: any, reply: any) => {
-  const { date } = request.query as { date?: string };
+export const getEntriesByDate = async (
+  request: FastifyRequest<{ Querystring: { date?: string } }>,
+  reply: FastifyReply,
+) => {
+  const { date } = request.query;
   const userId = request.user!.id;
 
   const targetDate = date ? new Date(date) : new Date();
@@ -155,38 +173,37 @@ export const getEntriesByDate = async (request: any, reply: any) => {
   }
 };
 
-export const updateEntry = async (request: any, reply: any) => {
-  const { id } = request.params as { id: string };
-  const { weight, mealType } = request.body as {
-    weight?: number;
-    mealType?: string;
-  };
+export const updateEntry = async (
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) => {
+  const entryId = parseEntryId(request.params.id);
+  const parsed = parseWithSchema(updateEntrySchema, request.body);
+  if ("error" in parsed) {
+    return reply.status(400).send({ error: parsed.error });
+  }
+  const { weight, mealType } = parsed.data;
   const userId = request.user!.id;
 
-  if (
-    weight !== undefined &&
-    (typeof weight !== "number" || weight <= 0 || weight > 10000)
-  ) {
-    return reply
-      .status(400)
-      .send({ error: "Weight must be a positive number up to 10000" });
+  if (entryId == null) {
+    return reply.status(404).send({ error: "Entry not found" });
   }
 
   try {
     const entry = await prisma.diaryEntry.findUnique({
-      where: { id: Number(id) },
+      where: { id: entryId },
       include: { product: true },
     });
 
-    if (!entry) return reply.status(404).send({ error: "Entry not found" });
-    if (entry.userId !== userId)
-      return reply.status(403).send({ error: "Forbidden" });
+    if (!entry || entry.userId !== userId) {
+      return reply.status(404).send({ error: "Entry not found" });
+    }
 
     const updated = await prisma.diaryEntry.update({
-      where: { id: Number(id) },
+      where: { id: entryId },
       data: {
         ...(weight !== undefined ? { weight } : {}),
-        ...(mealType ? { mealType: mealType.toUpperCase() as any } : {}),
+        ...(mealType ? { mealType } : {}),
       },
       include: { product: true },
     });
@@ -198,24 +215,27 @@ export const updateEntry = async (request: any, reply: any) => {
   }
 };
 
-export const deleteEntry = async (request: any, reply: any) => {
-  const { id } = request.params as { id: string };
+export const deleteEntry = async (
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) => {
+  const entryId = parseEntryId(request.params.id);
   const userId = request.user!.id;
+
+  if (entryId == null) {
+    return reply.status(404).send({ error: "Entry not found" });
+  }
 
   try {
     const entry = await prisma.diaryEntry.findUnique({
-      where: { id: Number(id) },
+      where: { id: entryId },
     });
 
-    if (!entry) {
+    if (!entry || entry.userId !== userId) {
       return reply.status(404).send({ error: "Entry not found" });
     }
 
-    if (entry.userId !== userId) {
-      return reply.status(403).send({ error: "Forbidden" });
-    }
-
-    await prisma.diaryEntry.delete({ where: { id: Number(id) } });
+    await prisma.diaryEntry.delete({ where: { id: entryId } });
     return reply.status(204).send();
   } catch (error) {
     console.error("Delete entry error:", error);
