@@ -67,6 +67,29 @@ describe("createEntrySchema", () => {
       productId: "",
     });
     expect("data" in parsed).toBe(true);
+    if ("data" in parsed) {
+      expect(parsed.data.productId).toBeUndefined();
+    }
+  });
+
+  it("rejects a missing productName even when productId is set", () => {
+    const parsed = parseWithSchema(createEntrySchema, {
+      date: "2026-09-18",
+      productId: "custom_1",
+      mealType: "breakfast",
+      weight: 150,
+      calories: 120,
+      protein: 16,
+      fat: 5,
+      carbs: 3,
+    });
+    expect("error" in parsed).toBe(true);
+  });
+
+  it("rejects missing per-100g macros", () => {
+    const { calories: _calories, ...withoutCalories } = validEntry;
+    const parsed = parseWithSchema(createEntrySchema, withoutCalories);
+    expect("error" in parsed).toBe(true);
   });
 });
 

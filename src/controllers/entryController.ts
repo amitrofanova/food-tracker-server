@@ -6,37 +6,34 @@ import {
   updateEntrySchema,
 } from "../lib/validation";
 
-function serializeEntry(
-  entry: {
-    id: number;
-    date: Date;
-    weight: number;
-    mealType: string;
-    userId: number;
-    productId: bigint;
-    createdAt: Date;
-  },
-  product: {
-    id: bigint;
-    name: string;
-    calories: number;
-    protein: number;
-    fat: number;
-    carbs: number;
-  },
-) {
+type DiaryEntryRow = {
+  id: number;
+  date: Date;
+  weight: number;
+  mealType: string;
+  userId: number;
+  productId: string | null;
+  productName: string;
+  calories: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  createdAt: Date;
+};
+
+function serializeEntry(entry: DiaryEntryRow) {
   return {
     id: String(entry.id),
     date: entry.date.toISOString().slice(0, 10),
-    productId: String(entry.productId),
-    productName: product.name,
+    productId: entry.productId,
+    productName: entry.productName,
     mealType: entry.mealType.toLowerCase(),
     weight: entry.weight,
-    // КБЖУ в API — всегда на 100 г (как в Product). Порцию считает клиент.
-    calories: Math.round(product.calories),
-    protein: Math.round(product.protein),
-    fat: Math.round(product.fat),
-    carbs: Math.round(product.carbs),
+    // КБЖУ в API — снимок на 100 г, записанный на DiaryEntry. Порцию считает клиент.
+    calories: Math.round(entry.calories),
+    protein: Math.round(entry.protein),
+    fat: Math.round(entry.fat),
+    carbs: Math.round(entry.carbs),
   };
 }
 
@@ -71,63 +68,22 @@ export const createEntry = async (
   const userId = request.user!.id;
 
   try {
-    // 1. Если указан productId — пробуем найти существующий продукт по числовому id
-    //    (для продуктов из OpenFoodFacts id — строка штрихкода, поэтому при ненахождении
-    //     делаем upsert по имени, используя БЖУ из тела запроса)
-    let product;
-    if (productId) {
-      const numericId = Number(productId);
-      if (
-        !Number.isNaN(numericId) &&
-        numericId > 0 &&
-        numericId < Number.MAX_SAFE_INTEGER
-      ) {
-        product = await prisma.product.findUnique({ where: { id: numericId } });
-      }
-    }
-
-    if (!product) {
-      const name = productName ?? productId;
-      if (!name) {
-        return reply
-          .status(400)
-          .send({ error: "Either productId or productName is required" });
-      }
-
-      // POST calories/protein/fat/carbs = per 100g, stored on Product as-is.
-      const raw100g = {
-        calories: calories ?? 0,
-        protein: protein ?? 0,
-        fat: fat ?? 0,
-        carbs: carbs ?? 0,
-      };
-
-      product = await prisma.product.upsert({
-        where: { name },
-        update: {},
-        create: {
-          name,
-          ...raw100g,
-        },
-      });
-    }
-
-    // 3. Создаём запись
     const entry = await prisma.diaryEntry.create({
       data: {
-        date: new Date(date), // ожидаем строку в формате ISO или YYYY-MM-DD
+        date: new Date(date),
         weight,
         mealType,
         userId,
-        productId: product.id,
-      },
-      include: {
-        product: true,
+        productId: productId ?? null,
+        productName,
+        calories,
+        protein,
+        fat,
+        carbs,
       },
     });
 
-    // 4. Формируем ответ
-    return reply.send(serializeEntry(entry, product));
+    return reply.send(serializeEntry(entry));
   } catch (error) {
     console.error("Create entry error:", error);
     return reply.status(500).send({ error: "Failed to create entry" });
@@ -157,17 +113,10 @@ export const getEntriesByDate = async (
           lt: endOfDay,
         },
       },
-      include: {
-        product: true,
-      },
       orderBy: { createdAt: "desc" },
     });
 
-    const enrichedEntries = entries.map((entry) =>
-      serializeEntry(entry, entry.product),
-    );
-
-    return reply.send(enrichedEntries);
+    return reply.send(entries.map(serializeEntry));
   } catch (error) {
     console.error("Get entries error:", error);
     return reply.status(500).send({ error: "Failed to fetch entries" });
@@ -193,7 +142,6 @@ export const updateEntry = async (
   try {
     const entry = await prisma.diaryEntry.findUnique({
       where: { id: entryId },
-      include: { product: true },
     });
 
     if (!entry || entry.userId !== userId) {
@@ -206,10 +154,9 @@ export const updateEntry = async (
         ...(weight !== undefined ? { weight } : {}),
         ...(mealType ? { mealType } : {}),
       },
-      include: { product: true },
     });
 
-    return reply.send(serializeEntry(updated, updated.product));
+    return reply.send(serializeEntry(updated));
   } catch (error) {
     console.error("Update entry error:", error);
     return reply.status(500).send({ error: "Failed to update entry" });

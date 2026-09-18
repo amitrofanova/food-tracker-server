@@ -76,27 +76,23 @@ const optionalNonEmptyString = z
   .optional()
   .transform((value) => (value ? value : undefined));
 
-export const createEntrySchema = z
-  .object({
-    date: z
-      .string({ error: "date is required" })
-      .trim()
-      .min(1, { error: "date is required" })
-      .refine((value) => !Number.isNaN(Date.parse(value)), {
-        error: "Invalid date",
-      }),
-    productId: optionalNonEmptyString,
-    productName: optionalNonEmptyString,
-    mealType: mealTypeSchema,
-    weight: weightSchema,
-    calories: nutritionValueSchema.optional(),
-    protein: nutritionValueSchema.optional(),
-    fat: nutritionValueSchema.optional(),
-    carbs: nutritionValueSchema.optional(),
-  })
-  .refine((data) => Boolean(data.productId || data.productName), {
-    error: "Either productId or productName is required",
-  });
+export const createEntrySchema = z.object({
+  date: z
+    .string({ error: "date is required" })
+    .trim()
+    .min(1, { error: "date is required" })
+    .refine((value) => !Number.isNaN(Date.parse(value)), {
+      error: "Invalid date",
+    }),
+  productId: optionalNonEmptyString,
+  productName: productNameSchema,
+  mealType: mealTypeSchema,
+  weight: weightSchema,
+  calories: nutritionValueSchema,
+  protein: nutritionValueSchema,
+  fat: nutritionValueSchema,
+  carbs: nutritionValueSchema,
+});
 
 export const updateEntrySchema = z.object({
   weight: weightSchema.optional(),
