@@ -43,6 +43,7 @@ enum MealType {
   SNACK
 }
 
+// OFF catalog cache. Diary rows do not depend on this table.
 model Product {
   id        BigInt   @id @default(autoincrement())
   name      String   @unique
@@ -50,19 +51,22 @@ model Product {
   protein   Float    // г на 100 г
   fat       Float    // г на 100 г
   carbs     Float    // г на 100 г
-  entries   DiaryEntry[]
 }
 
 model DiaryEntry {
-  id         Int       @id @default(autoincrement())
-  date       DateTime
-  weight     Float
-  mealType   MealType
-  userId     Int
-  productId  BigInt
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product    Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  createdAt  DateTime  @default(now())
+  id          Int       @id @default(autoincrement())
+  date        DateTime
+  weight      Float
+  mealType    MealType
+  userId      Int
+  productId   String? // optional OFF barcode / client product id
+  productName String
+  calories    Float    // снимок: ккал на 100 г
+  protein     Float    // снимок: г на 100 г
+  fat         Float    // снимок: г на 100 г
+  carbs       Float    // снимок: г на 100 г
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
 }
 
 model CustomProduct {

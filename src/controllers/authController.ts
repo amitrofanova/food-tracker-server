@@ -3,13 +3,19 @@ import { prisma } from "../lib/prisma";
 import bcrypt from "bcrypt";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { parseCredentials } from "../lib/authValidation";
-import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from "../lib/authCookies";
+import {
+  REFRESH_COOKIE,
+  clearAuthCookies,
+  isNativeClient,
+  setAuthCookies,
+} from "../lib/authCookies";
 import {
   createSession,
   revokeRefreshToken,
   rotateRefreshToken,
   signAccessToken,
 } from "../lib/authTokens";
+import { parseWithSchema, updateMeSchema } from "../lib/validation";
 
 const SALT_ROUNDS = 12;
 const DUMMY_PASSWORD_HASH =
@@ -32,29 +38,39 @@ function toPublicUser(user: PublicUser) {
 function readRefreshToken(request: FastifyRequest): string | undefined {
   const fromCookie = request.cookies[REFRESH_COOKIE];
   if (fromCookie) return fromCookie;
-  const body = request.body as { refreshToken?: unknown } | null;
-  if (
-    body &&
-    typeof body.refreshToken === "string" &&
-    body.refreshToken.length > 0
-  ) {
-    return body.refreshToken;
+  const body = request.body;
+  if (!body || typeof body !== "object") {
+    return undefined;
+  }
+  const refreshToken = (body as Record<string, unknown>).refreshToken;
+  if (typeof refreshToken === "string" && refreshToken.length > 0) {
+    return refreshToken;
   }
   return undefined;
 }
 
+type AuthResponseBody = {
+  user: PublicUser;
+  token?: string;
+  refreshToken?: string;
+};
+
 async function issueAuthResponse(
+  request: FastifyRequest,
   reply: FastifyReply,
   user: PublicUser,
   statusCode = 200,
 ) {
   const { token, refreshToken } = await createSession(user.id);
   setAuthCookies(reply, token, refreshToken);
-  return reply.status(statusCode).send({
-    token,
-    refreshToken,
+  const payload: AuthResponseBody = {
     user: toPublicUser(user),
-  });
+  };
+  if (isNativeClient(request)) {
+    payload.token = token;
+    payload.refreshToken = refreshToken;
+  }
+  return reply.status(statusCode).send(payload);
 }
 
 export const register = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -114,7 +130,7 @@ export const login = async (request: FastifyRequest, reply: FastifyReply) => {
       return reply.status(401).send({ error: "Неверный email или пароль" });
     }
 
-    return issueAuthResponse(reply, user);
+    return issueAuthResponse(request, reply, user);
   } catch (error) {
     console.error("Login error:", error);
     return reply.status(500).send({ error: "Ошибка сервера" });
@@ -136,10 +152,13 @@ export const refresh = async (request: FastifyRequest, reply: FastifyReply) => {
 
     const token = signAccessToken(rotated.userId);
     setAuthCookies(reply, token, rotated.refreshToken);
-    return reply.send({
-      token,
-      refreshToken: rotated.refreshToken,
-    });
+    if (isNativeClient(request)) {
+      return reply.send({
+        token,
+        refreshToken: rotated.refreshToken,
+      });
+    }
+    return reply.send({});
   } catch (error) {
     console.error("Refresh error:", error);
     return reply.status(500).send({ error: "Ошибка сервера" });
@@ -179,11 +198,14 @@ export const getMe = async (request: FastifyRequest, reply: FastifyReply) => {
 
 export const updateMe = async (request: FastifyRequest, reply: FastifyReply) => {
   const userId = request.user!.id;
-  const { calorieBudget } = request.body as { calorieBudget?: number };
+  const parsed = parseWithSchema(updateMeSchema, request.body);
+  if ("error" in parsed) {
+    return reply.status(400).send({ error: parsed.error });
+  }
   try {
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { calorieBudget: calorieBudget ?? null },
+      data: { calorieBudget: parsed.data.calorieBudget },
       select: { id: true, email: true, calorieBudget: true },
     });
     return reply.send(user);

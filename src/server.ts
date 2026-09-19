@@ -52,7 +52,7 @@ const start = async () => {
       : ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Client"],
   });
 
   fastify.register(authRoutes, { prefix: "/api/auth" });
